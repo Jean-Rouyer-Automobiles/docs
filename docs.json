@@ -25,8 +25,16 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Untitled Anchor",
-          "href": ""
+          "anchor": "MyJra",
+          "href": "https://my.jra.tools"
+        },
+        {
+          "anchor": "sql-preview",
+          "href": "https://sql.autobonplan-1.44.io/"
+        },
+        {
+          "anchor": "sql-master",
+          "href": "https://sql-api-master.jra.tools/"
         }
       ]
     }

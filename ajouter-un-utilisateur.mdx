@@ -1,0 +1,63 @@
+---
+title: "Utilisateurs"
+---
+
+Les utilisateurs sont stockés en [base de données]([https://sql-api-master.jra.tools]\(https://sql-api-master.jra.tools/\)) et sont consultables dans [MyJra](my.jra.tools).
+
+Ils sont automatiquement créés via un fetch d'ADP exécuté dans un [cron](cron.jra.tools).
+
+Lorsqu'un utilisateur n'existe pas dans ADP, il faut alors le créer manuellement.
+
+## Création
+
+Il est possible de créer un utilisateur depuis MyJra mais le cron supprimera son email à la synchronisation.
+
+## Ajout d'un email
+
+Suite à l'actualisation il est parfois nécessaire de rajouter à la main l'adresse mail, si celle-ci n'était pas connue d'ADP. 
+
+Pour ré-appliquer l'email, il existe un script disponible en `ssh` sur le serveur **Api-Master**.
+
+```sql ~/scripts/proper/custom-mail.sql
+WITH emails AS (
+  SELECT 'user.un@jeanrouyerautomobiles.fr' AS email UNION ALL
+  SELECT 'user.deux@jeanrouyerautomobiles.fr'
+),
+parsed AS (
+  SELECT
+    email,
+    UPPER(SUBSTRING_INDEX(email, '.', 1)) AS firstname,
+    UPPER(SUBSTRING_INDEX(SUBSTRING_INDEX(email, '@', 1), '.', -1)) AS lastname
+  FROM emails
+)
+UPDATE `JRA_user` u
+JOIN parsed p ON u.firstname = p.firstname AND u.lastname = p.lastname
+SET u.email = p.email
+WHERE u.email IS NULL
+   OR u.email = ''
+   OR u.email <> p.email;
+```
+
+> ⚠️ seule la dernière ligne doit se passer de la mention `AS email UNION ALL`
+
+Il suffit d'ajouter une ligne avec le prénom.nom de l'utilisateur, puis d'executer la commande suivante :
+
+```shellscript
+mysql api-master < /srv/users/api-master/scripts/proper/custom-mail.sql
+```
+
+## Mot de passe
+
+Le mot de passe est un hash **bcrypt** avec un poids à 10. 
+
+### Randomisation
+
+[https://www.motdepasse.xyz](https://www.motdepasse.xyz)
+
+### Hash
+
+[https://bcrypt-generator.com](https://bcrypt-generator.com/)
+
+[https://www.bcrypt.fr](https://www.bcrypt.fr/)
+
+[https://bcrypt.online](https://bcrypt.online/)

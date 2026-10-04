@@ -19,7 +19,14 @@
               "ajouter-un-utilisateur"
             ]
           },
-          "ajouter-une-app-et-la-sync-avec-github"
+          "ajouter-une-app-et-la-sync-avec-github",
+          {
+            "group": "Tools",
+            "pages": [
+              "knip",
+              "ncu"
+            ]
+          }
         ]
       }
     ],

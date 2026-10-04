@@ -1,0 +1,76 @@
+---
+title: "Knip"
+---
+
+# détecter fichiers, exports et dépendances inutilisés
+
+## Utilité
+
+Knip est un _project linter_ pour JavaScript/TypeScript : il analyse le projet **dans son ensemble** (là où ESLint ne traite que des fichiers isolés) et remonte : 
+
+- **fichiers inutilisés** (jamais importés, hors points d'entrée) ;
+- **exports inutilisés** (fonctions, classes, types jamais importés ailleurs) ;
+- **dépendances inutilisées** (présentes dans `package.json`, jamais importées) ;
+- **dépendances manquantes** (importées mais non déclarées — donc dépendantes de versions transitives, source de cassures). 
+
+Pourquoi c'est important : des dépendances inutilisées alourdissent `node_modules`, ralentissent l'installation et les outils (linters, bundlers), et peuvent finir dans le bundle de production. 
+
+## Points clés
+
+- Support natif de **TypeScript** et de tous les package managers (npm, pnpm, Bun, Yarn).
+- Support **monorepos/workspaces** de premier ordre (si une dépendance est listée à la racine, elle n'a pas besoin d'être répétée dans les sous-packages). 
+- De nombreux **plugins/heuristiques** pour détecter automatiquement les points d'entrée selon les frameworks et outils du projet. 
+- Après suppression d'un élément signalé, relancer Knip : de nouveaux fichiers/exports inutilisés apparaissent en cascade (le code mort masque d'autre code mort). 
+
+## Installation et usage de base
+
+```bash
+# Installation en devDependency
+npm install --save-dev knip
+
+# Analyse ponctuelle sans installation
+npx knip
+```
+
+Commandes utiles :
+
+```bash
+npx knip                # rapport complet : fichiers, exports, dépendances inutilisés
+npx knip --production   # mode strict : code de prod uniquement (exclut devDependencies,
+                         # utile pour repérer le code mort utilisé seulement par les tests)
+npx knip --fix           # retire automatiquement les dépendances inutilisées
+npx knip --help          # liste des options
+```
+
+> Le mode `--production` utilise uniquement les fichiers source de production comme points d'entrée : un export utilisé seulement par des tests y sera signalé, et on pourra supprimer l'export **et** ses tests. 
+
+## Configuration
+
+Knip cherche par défaut un fichier `knip.json` (ou une clé `knip` dans `package.json`). 
+
+```jsonc
+// knip.json
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": ["src/index.ts"],          // points d'entrée (souvent auto-détectés)
+  "project": ["src/**/*.ts"],         // fichiers analysés
+  "ignore": ["src/legacy/**"],        // fichiers à exclure de l'analyse
+  "ignoreExportsUsedInFile": true     // ne pas signaler les exports utilisés dans leur propre fichier
+}
+```
+
+## En CI
+
+Faire échouer la pipeline si du code mort est introduit :
+
+```yaml
+# .github/workflows/knip.yml
+- run: npm ci
+- run: npx knip
+```
+
+Knip sort avec un code d'erreur non nul si des problèmes sont détectés — idéal en CI pour empêcher le merge de code inutilisé.
+
+## Complément
+
+Une fois le projet nettoyé, la mise à jour des dépendances restantes se fait avec **ncu** (npm-check-updates) — voir la doc dédiée. Moins de dépendances à migrer, moins de risques.

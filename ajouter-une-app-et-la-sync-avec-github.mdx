@@ -2,141 +2,190 @@
 title: "Ajouter une app et la sync avec github"
 ---
 
-se connecter en ssh puis creer un dossier git
+Ce document décrit la procédure complète pour déployer une application backend PHP sur un serveur via GitHub Actions (SSH), depuis la préparation du serveur jusqu'au bootstrap de l'application.
 
-```text
+## Sommaire
+
+1. [Vue d'ensemble](#vue-densemble)
+2. [Préparation du serveur](#1-préparation-du-serveur)
+3. [Autoriser GitHub sur le serveur](#2-autoriser-github-sur-le-serveur)
+4. [Ajouter la clé sur GitHub (deploy key)](#3-ajouter-la-clé-sur-github-deploy-key)
+5. [Configurer le workflow de déploiement](#4-configurer-le-workflow-de-déploiement)
+6. [Lier le déploiement au serveur web (lien symbolique)](#5-lier-le-déploiement-au-serveur-web-lien-symbolique)
+7. [Bootstrap de l'app](#6-bootstrap-de-lapp)
+
+---
+
+## Vue d'ensemble
+
+Le principe :
+
+- le serveur détient une paire de clés SSH dédiée à GitHub ;
+- GitHub s'y connecte en SSH via **appleboy/ssh-action** à chaque push sur `main` ou `preview` ;
+- le script de déploiement fait un clone ou un reset du dépôt dans `~/git/<repo>`, puis installe les dépendances Composer ;
+- le dossier `public` de l'app est exposé au serveur web via un lien symbolique ;
+- un `.htaccess` et un bootstrap `index.php` isolent le code exécutable.
+
+Le déploiement utilise deux environnements GitHub :
+
+| Branche | Environnement |
+| --- | --- |
+| `main` | `production` |
+| `preview` | `preview` |
+
+---
+
+## 1. Préparation du serveur
+
+Se connecter en SSH au serveur, puis créerer le dossier qui accueillera les clones git :
+
+```bash
 mkdir git
 ```
 
-ensuite creer une clé ssh pour GitHub
+Créer une clé SSH dédiée pour GitHub :
 
-```text
+```bash
 ssh-keygen -t ed25519
-# ne pas la renommer
-# ne pas mettre de passphrase
 ```
 
-ajouter la clé publique en clé autorisée
+Règles :
 
-```text
+- **ne pas** renommer la clé (chemin par défaut `~/.ssh/id_ed25519`) ;
+- **ne pas** mettre de passphrase (le déploiement est automatisé).
+
+Ajouter la clé publique en clé autorisée :
+
+```bash
 cat id_ed25519.pub >> authorized_keys
 ```
 
-### **authorize github**
+## 2. Autoriser GitHub sur le serveur
 
-```text
+Créer (ou compléter) la config SSH pour forcer l'utilisation de cette clé avec GitHub :
+
+```bash
 echo "Host github.com
  HostName github.com
  User git
  IdentityFile ~/.ssh/id_ed25519
  IdentitiesOnly yes" > ~/.ssh/config
-​
+```
+
+Tester la connexion :
+
+```bash
 ssh -T git@github.com
 ```
 
-valider `Yes`.
+Valider avec `Yes`. Le message attendu :
 
 > Hi Jean-Rouyer-Automobiles/\<repo> ! You've successfully authenticated, but GitHub does not provide shell access
 
 ---
 
-ajouter la clé en lecture seule dans le repo github > settings > deploy keys
+## 3. Ajouter la clé sur GitHub (deploy key)
 
-y ajouter la ligne contenu dans le fichier pub en entier, le titre devra etre l'identifiant de fin sous la forme suivante :
+Dans le repo GitHub : **Settings → Deploy keys → Add deploy key**.
 
-`<who>@<from>`
+- **Key** : le contenu **complet** du fichier `id_ed25519.pub` ;
+- **Title** : l'identifiant de fin de la clé, sous la forme `<who>@<from>` ;
+- la clé est en **lecture seule** (ne pas cocher _Allow write access_).
 
-ajouter le workflow suivant :
+> GitHub n'a ainsi que le droit de lire le dépôt (clone/fetch), jamais d'écrire.
 
-il sera donc necessaire de déclarer 3 variables :
+## 4. Configurer le workflow de déploiement
 
-host, user, key.<br />dans settings > secrets and variables > actions : on ajoutes les environnements necessaires :
+### Secrets et variables
 
-production
+Dans **Settings → Secrets and variables → Actions**, créer les environnements **`production`** et **`preview`**, puis y déclarer :
 
-preview
+| name | type | description |
+| --- | --- | --- |
+| `SSH_HOST` | variable | URL ou IP pour la connexion SSH |
+| `SSH_USER` | secret | utilisateur pour la connexion SSH |
+| `SSH_KEY` | secret | clé privée SSH créée au §1 (le fichier **sans** le `.pub`) |
 
----
+### Workflow
 
-key et user seront des secrets, host une variable
+`.github/workflows/deploy.yml` :
 
-| **name** | **type** | **description** |
-| :-- | :-- | :-- |
-| SSH_HOST | variable | url ou ip pour la connexion ssh |
-| SSH_USER | secret | utilisateur pour la connexion ssh |
-| SSH_KEY | secret | Clé privée ssh (celle que nous avons créés juste avant sans le .pub) |
-
-```text
-# workflow 
+```yaml
 name: Deploy Backend via SSH
-​
+
 on:
   push:
-    branches: [main, preview]
-​
-​
+    branches: [main, preview]
+
+
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        env:
-          BRANCH: ${{ github.ref_name }}
-          REPO: ${{ github.event.repository.name }}
-        with:
-          host: ${{ vars.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          envs: BRANCH,REPO
-          script: |
-            set -e
-            cd ~/git
-​
-            if [ -d "$REPO/.git" ]; then
-              cd "$REPO"
-              git fetch origin
-              git reset --hard "origin/$BRANCH"
-            else
-              rm -rf "$REPO"
-              git clone "git@github.com:${{ github.repository }}.git" "$REPO"
-              cd "$REPO"
-              git checkout "$BRANCH"
-            fi
-            
-            cd apps/api
-            composer7.4-sp install --no-dev
-            composer7.4-sp dumpautoload -a
-            echo "✅ Déploiement $BRANCH terminé"
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          BRANCH: ${{ github.ref_name }}
+          REPO: ${{ github.event.repository.name }}
+        with:
+          host: ${{ vars.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: BRANCH,REPO
+          script: |
+            set -e
+            cd ~/git
+
+            if [ -d "$REPO/.git" ]; then
+              cd "$REPO"
+              git fetch origin
+              git reset --hard "origin/$BRANCH"
+            else
+              rm -rf "$REPO"
+              git clone "git@github.com:${{ github.repository }}.git" "$REPO"
+              cd "$REPO"
+              git checkout "$BRANCH"
+            fi
+
+            cd apps/api
+            composer7.4-sp install --no-dev
+            composer7.4-sp dumpautoload -a
+            echo "✅ Déploiement $BRANCH terminé"
 ```
 
-a partir de la le déploiement se lancera.
+À partir de là, le déploiement se lance à chaque push sur `main` ou `preview`.
 
-la liaison du deploiement au server web se fera par lien symbolique.
+> Le script gère deux cas : premier déploiement (clone) et déploiements suivants (fetch + `reset --hard`, qui écrase toute modification locale). Les dépendances sont installées en mode production (`--no-dev`) avec l'autoloader optimisé (`-a`).
 
-## **Lien symbolique**
+## 5. Lier le déploiement au serveur web (lien symbolique)
 
-le dossier public du clone git doit exister avant la creation mais pas le public dans apps.
+La liaison entre le clone git et le serveur web se fait par lien symbolique.
 
-```text
-pwd #pour connaître le chemin complet du repertoire ou `~/` 
+**Important** : le dossier `public` du clone git doit exister avant la création du lien, mais **pas** le `public` dans `apps`.
+
+```bash
+pwd   # pour connaître le chemin complet du répertoire, ou utiliser ~/
 ln -s <clone git>[/apps/api]/public ~/apps/<app name>/public
 ```
 
-exemple :
+Exemple :
 
-```text
+```bash
 rm -rf ~/apps/api-cron/public
 ln -s ~/git/jra-cron-legacy/apps/api/public ~/apps/api-cron/public
 ```
 
-## **Bootstrap de l'app**
+## 6. Bootstrap de l'app
 
-Pour demarrer l'app en toute sécurité, nous avons créé un dossier public pour isoler le code accessible.<br />il nous reste 2 choses a faire, interdire l'accès aux ressources parantes et créé le bootstrap qui executera le code.
+Pour démarrer l'app en toute sécurité, un dossier `public` isole le code accessible depuis le web. Il reste deux choses à faire :
 
-```text
-# public/.htaccess
+1. **interdire l'accès aux ressources parentes** ;
+2. **créer le bootstrap** qui exécutera le code.
+
+### `public/.htaccess`
+
+```apache
 RewriteEngine On
 RewriteCond %{HTTP:Authorization} .
 RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
@@ -147,9 +196,19 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [L]
 ```
 
-```text
-# public/index.php
+Rôles des règles :
+
+- transmission de l'en-tête `Authorization` (nécessaire pour l'auth par token/Bearer en FastCGI) ;
+- `index.php` servi tel quel ;
+- accès direct à tout fichier exécutable (`.php`, `.phtml`, `.phar`, `.cgi`, `.pl`, `.py`, `.sh`) interdit ;
+- toute autre requête routée vers `index.php`.
+
+### `public/index.php`
+
+```php
 <?php
 chdir(dirname(__DIR__));
 require dirname(__DIR__) . '/index.php';
 ```
+
+Le bootstrap remonte à la racine de l'app et délègue au `index.php` racine, hors du dossier public.

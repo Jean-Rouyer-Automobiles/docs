@@ -1,3 +1,79 @@
 ---
-title: "NCU"
+title: "ncu - (npm-check-updates)"
 ---
+
+# mettre à jour les dépendances du `package.json`
+
+## Utilité
+
+`ncu` compare les versions déclarées dans `package.json` avec les dernières versions publiées sur le registry, **en ignorant les contraintes semver actuelles**. Concrètement : `"express": "^4.0.0"` pourra passer à `"^5.0.0"`.
+
+Il répond à un besoin différent des commandes natives :
+
+| Commande | Comportement |
+| --- | --- |
+| `npm outdated` | Diagnostic en lecture seule, sans réécriture |
+| `npm update` | Met à jour **dans** les limites semver déjà déclarées (`^4.x` reste en `4.x`) |
+| `ncu` | Affiche les versions **au-delà** des contraintes déclarées |
+| `ncu -u` | Réécrit `package.json` avec les nouvelles versions |
+
+`ncu` ne modifie **que** `package.json` : ni `node_modules`, ni lockfile ne sont touchés — l'installation reste à la charge de `npm install`. 
+
+## Installation et usage de base
+
+```bash
+npm install -g npm-check-updates   # ou usage ponctuel via npx
+npx ncu
+```
+
+```bash
+ncu                  # lister les mises à jour disponibles (lecture seule)
+ncu -u               # réécrire package.json avec les dernières versions
+ncu -u && npm install  # puis installer réellement
+```
+
+## Options essentielles
+
+```bash
+ncu --target patch     # ne monter que les versions patch
+ncu --target minor     # ne monter que les versions minor
+ncu --target latest    # tout monter, y compris les majeures (défaut de -u)
+
+ncu --filter express    # ne traiter que certaines dépendances
+ncu -u --filter eslint
+
+ncu --interactive       # choisir chaque mise à jour une par une
+ncu --peer             # respecter les peer dependencies (évite les cassures)
+
+ncu --doctor -u         # mode doctor : upgrade une par une + tests,
+                       # revert automatique des mises à jour qui cassent
+ncu -e 2               # exit code 2 si rien à mettre à jour (utile en script)
+```
+
+- Le mode **doctor** vérifie d'abord que les tests passent, upgrade tout, puis identifie et **annule individuellement** les upgrades qui font échouer les tests, en ne gardant que celles qui fonctionnent.
+- L'option `--peer` limite les suggestions aux versions compatibles avec les peer dependencies installées.
+- Configuration possible via `.ncurc.json` / `.ncurc.js` (filtres, targets, fonctions de filtrage avancées).
+
+## Workflow recommandé
+
+```bash
+# 1. Voir l'état des lieux
+ncu
+
+# 2. Traiter patch/minor d'abord, une dépendance à la fois pour les majeures
+ncu -u --target minor && npm install && npm test
+ncu -u --filter react && npm install && npm test
+
+# 3. Pour un gros projet : laisser le doctor isoler les casses
+ncu --doctor -u
+
+# 4. Comitter package.json + lockfile ensemble
+```
+
+`ncu -u` prépare les déclarations ; `npm install` résout les versions et met à jour `node_modules` et le lockfile. Toujours relire le diff et valider par les tests.
+
+> ⚠️ ncu n'est pas un bouton « upgrade sans risque » : c'est un **outil de décision**. Les majeures peuvent casser l'API — traiter chaque majeure séparément, en commit isolé.
+
+## Complément
+
+Avant une grosse vague de mises à jour, nettoyer d'abord le projet avec **Knip** (fichiers, exports et dépendances inutilisés) — voir la doc dédiée. Moins de dépendances à migrer, moins de risques.

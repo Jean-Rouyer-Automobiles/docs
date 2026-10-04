@@ -1,0 +1,172 @@
+# ajouter une app backend php et la synchroniser avec github
+
+
+
+se connecter en ssh puis creer un dossier git
+
+```
+mkdir git
+```
+
+ensuite creer une clé ssh pour GitHub
+
+```
+ssh-keygen -t ed25519
+# ne pas la renommer
+# ne pas mettre de passphrase
+```
+
+ajouter la clé publique en clé autorisée
+
+```
+cat id_ed25519.pub >> authorized_keys
+```
+
+### authorize github
+
+```bash
+echo "Host github.com
+ HostName github.com
+ User git
+ IdentityFile ~/.ssh/id_ed25519
+ IdentitiesOnly yes" > ~/.ssh/config
+
+ssh -T git@github.com
+```
+
+valider `Yes`.
+
+> Hi Jean-Rouyer-Automobiles/<repo> ! You've successfully authenticated, but GitHub does not provide shell access
+
+
+
+---
+
+ajouter la clé en lecture seule dans le repo github > settings > deploy keys
+
+y ajouter la ligne contenu dans le fichier pub en entier, le titre devra etre l'identifiant de fin sous la forme suivante : 
+
+`<who>@<from>`
+
+ajouter le workflow suivant : 
+
+
+
+il sera donc necessaire de déclarer 3 variables : 
+
+host, user, key.
+dans settings > secrets and variables > actions : on ajoutes les environnements necessaires : 
+
+production
+
+preview
+
+---
+
+key et user seront des secrets, host une variable
+
+| name     | type     | description                                                  |
+| -------- | -------- | ------------------------------------------------------------ |
+| SSH_HOST | variable | url ou ip pour la connexion ssh                              |
+| SSH_USER | secret   | utilisateur pour la connexion ssh                            |
+| SSH_KEY  | secret   | Clé privée ssh (celle que nous avons créés juste avant sans le .pub) |
+
+```yaml
+# workflow 
+name: Deploy Backend via SSH
+
+on:
+  push:
+    branches: [main, preview]
+
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          BRANCH: ${{ github.ref_name }}
+          REPO: ${{ github.event.repository.name }}
+        with:
+          host: ${{ vars.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: BRANCH,REPO
+          script: |
+            set -e
+            cd ~/git
+
+            if [ -d "$REPO/.git" ]; then
+              cd "$REPO"
+              git fetch origin
+              git reset --hard "origin/$BRANCH"
+            else
+              rm -rf "$REPO"
+              git clone "git@github.com:${{ github.repository }}.git" "$REPO"
+              cd "$REPO"
+              git checkout "$BRANCH"
+            fi
+            
+            cd apps/api
+            composer7.4-sp install --no-dev
+            composer7.4-sp dumpautoload -a
+            echo "✅ Déploiement $BRANCH terminé"
+```
+
+
+
+a partir de la le déploiement se lancera.
+
+la liaison du deploiement au server web se fera par lien symbolique.
+
+## Lien symbolique 
+
+le dossier public du clone git doit exister avant la creation mais pas le public dans apps.
+
+```bash
+pwd #pour connaître le chemin complet du repertoire ou `~/` 
+ln -s <clone git>[/apps/api]/public ~/apps/<app name>/public
+```
+
+exemple : 
+
+```bash
+rm -rf ~/apps/api-cron/public
+ln -s ~/git/jra-cron-legacy/apps/api/public ~/apps/api-cron/public
+```
+
+
+
+## Bootstrap de l'app
+
+Pour demarrer l'app en toute sécurité, nous avons créé un dossier public pour isoler le code accessible.
+il nous reste 2 choses a faire, interdire l'accès aux ressources parantes et créé le bootstrap qui executera le code.
+
+```htaccess
+# public/.htaccess
+RewriteEngine On
+RewriteCond %{HTTP:Authorization} .
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteRule ^index\.php$ - [L]
+RewriteRule \.(php|phtml|phar|cgi|pl|py|sh)$ - [F]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
+```
+
+```php
+# public/index.php
+<?php
+chdir(dirname(__DIR__));
+require dirname(__DIR__) . '/index.php';
+```
+
+
+
+
+
+
+

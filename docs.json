@@ -18,7 +18,8 @@
             "pages": [
               "ajouter-un-utilisateur"
             ]
-          }
+          },
+          "ajouter-une-app-et-la-sync-avec-github"
         ]
       }
     ],
@@ -54,13 +55,6 @@
       "type": "button",
       "label": "Dashboard",
       "href": "https://jeanrouyer.mintlify.com"
-    }
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
     }
   },
   "icons": {

@@ -2,23 +2,19 @@
 title: "Utilisateurs"
 ---
 
-Les utilisateurs sont stockés en [base de données]([https://sql-api-master.jra.tools]\(https://sql-api-master.jra.tools/\)) et sont consultables dans [MyJra](my.jra.tools).
+Les utilisateurs sont stockés en [**base de données**](https://jeanrouyer.mintlify.io/%5Bhttps://sql-api-master.jra.tools%5D\(https://sql-api-master.jra.tools/\)) et sont consultables dans [**MyJra**](https://jeanrouyer.mintlify.io/my.jra.tools).Ils sont automatiquement créés via un fetch d’ADP exécuté dans un [**cron**](https://jeanrouyer.mintlify.io/cron.jra.tools).Lorsqu’un utilisateur n’existe pas dans ADP, il faut alors le créer manuellement.
 
-Ils sont automatiquement créés via un fetch d'ADP exécuté dans un [cron](cron.jra.tools).
+## [**​**](https://jeanrouyer.mintlify.io/ajouter-un-utilisateur#cr%C3%A9ation)
 
-Lorsqu'un utilisateur n'existe pas dans ADP, il faut alors le créer manuellement.
+CréationIl est possible de créer un utilisateur depuis MyJra mais le cron supprimera son email à la synchronisation.
 
-## Création
+## [**​**](https://jeanrouyer.mintlify.io/ajouter-un-utilisateur#ajout-d%E2%80%99un-email)
 
-Il est possible de créer un utilisateur depuis MyJra mais le cron supprimera son email à la synchronisation.
+Ajout d’un emailSuite à l’actualisation il est parfois nécessaire de rajouter à la main l’adresse mail, si celle-ci n’était pas connue d’ADP.Pour ré-appliquer l’email, il existe un script disponible en `ssh` sur le serveur **Api-Master**.
 
-## Ajout d'un email
+~/scripts/proper/custom-mail.sql
 
-Suite à l'actualisation il est parfois nécessaire de rajouter à la main l'adresse mail, si celle-ci n'était pas connue d'ADP. 
-
-Pour ré-appliquer l'email, il existe un script disponible en `ssh` sur le serveur **Api-Master**.
-
-```sql ~/scripts/proper/custom-mail.sql
+```text
 WITH emails AS (
   SELECT 'user.un@jeanrouyerautomobiles.fr' AS email UNION ALL
   SELECT 'user.deux@jeanrouyerautomobiles.fr'
@@ -40,24 +36,22 @@ WHERE u.email IS NULL
 
 > ⚠️ seule la dernière ligne doit se passer de la mention `AS email UNION ALL`
 
-Il suffit d'ajouter une ligne avec le prénom.nom de l'utilisateur, puis d'executer la commande suivante :
+Il suffit d’ajouter une ligne avec le prénom.nom de l’utilisateur, puis d’executer la commande suivante :
 
-```shellscript
+```text
 mysql api-master < /srv/users/api-master/scripts/proper/custom-mail.sql
 ```
 
-## Mot de passe
+## [**​**](https://jeanrouyer.mintlify.io/ajouter-un-utilisateur#mot-de-passe)
 
-Le mot de passe est un hash **bcrypt** avec un poids à 10. 
+Mot de passeLe mot de passe est un hash **bcrypt** avec un poids à 10. 
 
-### Randomisation
+### [**​**](https://jeanrouyer.mintlify.io/ajouter-un-utilisateur#randomisation)
 
-[https://www.motdepasse.xyz](https://www.motdepasse.xyz)
+Randomisation**[https://](https://www.motdepasse.xyz/)[www.motdepasse.xyz](http://www.motdepasse.xyz)**
 
-### Hash
+### [**​**](https://jeanrouyer.mintlify.io/ajouter-un-utilisateur#hash)
 
-[https://bcrypt-generator.com](https://bcrypt-generator.com/)
+Hash**[https://bcrypt-generator.com](https://bcrypt-generator.com/)[https://www.bcrypt.fr](https://www.bcrypt.fr/)[https://](https://bcrypt.online/)[bcrypt.online](http://bcrypt.online)**
 
-[https://www.bcrypt.fr](https://www.bcrypt.fr/)
-
-[https://bcrypt.online](https://bcrypt.online/)
+[x](https://x.com/mintlify)[github](https://github.com/mintlify)[linkedin](https://linkedin.com/company/mintlify)

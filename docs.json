@@ -26,6 +26,12 @@
               "knip",
               "ncu"
             ]
+          },
+          {
+            "group": "Bridge",
+            "pages": [
+              "convention"
+            ]
           }
         ]
       }

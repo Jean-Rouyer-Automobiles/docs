@@ -1,0 +1,40 @@
+---
+title: "Convention"
+---
+
+<table>
+  <colgroup>
+    <col width="112" />
+    <col width="499" />
+    <col width="245" />
+  </colgroup>
+  <thead>
+    <tr>
+      <th>URI</th>
+      <th>Description</th>
+      <th>Objectif</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>/uyl/api</td>
+      <td>routage dynamique vers l'api officielle avec le openapi.json</td>
+      <td>centralisation des tokens</td>
+    </tr>
+    <tr>
+      <td>/uyl/batch</td>
+      <td>multiple requete api en parallele pour un seul retour</td>
+      <td>simplification</td>
+    </tr>
+    <tr>
+      <td>/uyl/scrap</td>
+      <td>[optionnel] scrapping des données non api-sées</td>
+      <td>solution alternative</td>
+    </tr>
+    <tr>
+      <td>/uyl/custom</td>
+      <td>requetes personnalisées vers un seul endpoint avec modification du retour</td>
+      <td>besoin non couvert par l'api</td>
+    </tr>
+  </tbody>
+</table>

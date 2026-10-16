@@ -8,4 +8,6 @@ icon:
 
 ### Supprimer les branches locales qui n'existent plus en remote
 
-\`git fetch -p && git branch -vv | grep ': gone]' | awk '\{print \$1\}' | xargs -r git branch -D\`
+```shellscript
+git fetch -p && git branch -vv | grep ': gone]' | awk '{print $1}' | xargs -r git branch -D
+```

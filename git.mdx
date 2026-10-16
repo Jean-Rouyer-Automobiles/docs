@@ -1,0 +1,11 @@
+---
+title: "Git"
+icon:
+  name: "git-compare"
+  style: "regular"
+  library: "lucide"
+---
+
+### Supprimer les branches locales qui n'existent plus en remote
+
+\`git fetch -p && git branch -vv | grep ': gone]' | awk '\{print \$1\}' | xargs -r git branch -D\`

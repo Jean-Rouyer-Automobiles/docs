@@ -1,0 +1,112 @@
+---
+title: "SCP — Secure Copy Protocol"
+---
+
+## Introduction
+
+`scp` (secure copy) est un utilitaire en ligne de commande permettant de transférer des fichiers entre une machine locale et un hôte distant (ou entre deux hôtes distants) via une connexion chiffrée SSH. Il fait partie du client OpenSSH et est disponible par défaut sur Linux, macOS et Windows 10+.
+
+## Syntaxe de base
+
+```bash
+scp [options] source destination
+```
+
+Les chemins distants se notent `user@hote:chemin`. Si aucun chemin n'est précisé après `:`, le fichier est copié dans le répertoire home de l'utilisateur distant.
+
+## Cas d'usage courants
+
+### Copier un fichier local vers un serveur distant
+
+```bash
+scp fichier.txt utilisateur@serveur:/chemin/destination/
+```
+
+### Copier un fichier distant vers la machine locale
+
+```bash
+scp utilisateur@serveur:/chemin/fichier.txt ./
+```
+
+### Copier entre deux hôtes distants
+
+```bash
+scp user1@hote1:/fichier.txt user2@hote2:/destination/
+```
+
+### Copier plusieurs fichiers
+
+```bash
+scp fichier1.txt fichier2.txt utilisateur@serveur:/backup/
+```
+
+### Copier un dossier entier
+
+L'option `-r` copie récursivement un répertoire et son contenu :
+
+```bash
+scp -r mon-dossier utilisateur@serveur:/var/www/
+```
+
+> Le fichier de configuration ssh étant pris en compte, il est possible d'utiliser les alias ssh. 
+
+## Options principales
+
+| Option | Rôle |
+| --- | --- |
+| `-r` | Copie récursive des répertoires |
+| `-P <port>` | Port SSH à utiliser (majuscule, contrairement à ssh) |
+| `-p` | Préserve les dates de modification et les permissions |
+| `-C` | Compresse les données pendant le transfert |
+| `-i <clé>` | Utilise une clé privée SSH spécifique |
+| `-v` | Mode verbeux (débogage) |
+| `-l <débit>` | Limite la bande passante en Kbit/s |
+| `-q` | Mode silencieux (masque la barre de progression) |
+
+## Exemples avancés
+
+```bash
+# Port SSH personnalisé (ex. 2222)
+scp -P 2222 archive.tar.gz utilisateur@serveur:/backup/
+
+# Avec une clé privée spécifique
+scp -i ~/.ssh/id_ed25519 fichier.txt utilisateur@serveur:~/
+
+# Transfert compressé avec préservation des attributs
+scp -Cp dossier/ utilisateur@serveur:/data/
+
+# Limiter le débit à 5 Mo/s (~40960 Kbit/s)
+scp -l 40960 gros-fichier.iso utilisateur@serveur:/data/
+```
+
+## Authentification
+
+- **Mot de passe** : demandé interactivement si aucune clé n'est configurée.
+- **Clé SSH** : méthode recommandée. La clé par défaut (`~/.ssh/id_rsa`, `id_ed25519`…) est utilisée automatiquement ; sinon, préciser `-i`.
+
+## Points d'attention
+
+- **Port en majuscule** : `-P` pour scp, `-p` pour ssh — source d'erreur fréquente.
+- **Espaces dans les chemins distants** : doubler l'échappement (`utilisateur@serveur:"chemin/avec espace/"`).
+- **Pas de reprise** : en cas d'interruption, le transfert repart de zéro (contrairement à `rsync`).
+- **Dépréciation du protocole SCP** : depuis OpenSSH 9.0 (2022), `scp` utilise le protocole SFTP par défaut (`-O` force l'ancien protocole). L'ancien protocole est considéré moins sûr.
+- **Pas de synchronisation** : scp copie tout, sans détection des fichiers déjà transférés. Pour des synchronisations récurrentes, préférer `rsync`.
+
+## scp vs rsync vs sftp
+
+| Critère | scp | rsync | sftp |
+| --- | --- | --- | --- |
+| Simplicité | Très simple | Moyen | Moyen |
+| Reprise sur interruption | Non | Oui | Oui (`reput`/`reget`) |
+| Synchronisation delta | Non | Oui | Non |
+| Liste / navigation distante | Non | Non | Oui |
+| Cas d'usage idéal | Copie unique rapide | Sauvegardes, gros volumes | Transferts interactifs |
+
+## Erreurs fréquentes
+
+| Message | Cause probable | Solution |
+| --- | --- | --- |
+| `Permission denied` | Mauvais utilisateur, mot de passe ou permissions | Vérifier les identifiants et les droits sur le répertoire cible |
+| `Connection refused` | Service SSH arrêté ou mauvais port | Vérifier `sshd` et l'option `-P` |
+| `No such file or directory` | Chemin distant erroné | Le chemin est relatif au home distant, pas au répertoire local |
+| `Is a directory` | Dossier copié sans `-r` | Ajouter `-r` |

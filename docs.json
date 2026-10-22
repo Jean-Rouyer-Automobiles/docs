@@ -25,7 +25,8 @@
             "pages": [
               "knip",
               "ncu",
-              "git"
+              "git",
+              "scp-secure-copy-protocol"
             ]
           },
           {
